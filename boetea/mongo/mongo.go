@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/watsonindustries/heidi/boetea"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -15,12 +16,10 @@ type mongoStore struct {
 	database *mongo.Database
 
 	*artworkStore
-	*userStore
-	*guildStore
-	*bookmarkStore
 }
 
-func New(ctx context.Context, uri string, db string) (store.Store, error) {
+// Create a new Mongo store with a context, URI string and db name.
+func New(ctx context.Context, uri string, db string) (boetea.Store, error) {
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to mongo: %w", err)
@@ -32,17 +31,14 @@ func New(ctx context.Context, uri string, db string) (store.Store, error) {
 
 	database := client.Database(db)
 	return &mongoStore{
-		client:        client,
-		database:      database,
-		artworkStore:  &artworkStore{client, database, database.Collection("artworks")},
-		userStore:     &userStore{client, database, database.Collection("users")},
-		guildStore:    &guildStore{client, database, database.Collection("guilds")},
-		bookmarkStore: &bookmarkStore{client, database, database.Collection("bookmarks")},
+		client:       client,
+		database:     database,
+		artworkStore: &artworkStore{client, database, database.Collection("artworks")},
 	}, nil
 }
 
 func (m *mongoStore) Init(ctx context.Context) error {
-	collections := []string{"artworks", "counters", "guilds", "users", "bookmarks"}
+	collections := []string{"artworks"}
 	for _, col := range collections {
 		err := m.database.CreateCollection(ctx, col)
 		if err != nil && !errors.As(err, &mongo.CommandError{}) {
